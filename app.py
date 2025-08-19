@@ -5,7 +5,7 @@ import httpx
 import json
 from flask import Flask, render_template, request, jsonify
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 # --- CONFIGURATION ---
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -22,7 +22,7 @@ razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 # Build the Telegram Bot Application
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# --- TELEGRAM BOT HANDLERS (v20 style) ---
+# --- TELEGRAM BOT HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command."""
     user_id = update.effective_chat.id
@@ -91,7 +91,6 @@ def razorpay_webhook():
         user_id = payment_entity['notes'].get('telegram_user_id')
 
         if user_id:
-            # We need to run the async send_document function in a new event loop
             async def send_file():
                 bot = Bot(token=TELEGRAM_TOKEN)
                 try:
@@ -112,21 +111,24 @@ def razorpay_webhook():
 # This is the new webhook handler for Telegram v20
 @app.route('/telegram', methods=['POST'])
 async def telegram_webhook_handler():
+    # THE FIX IS HERE: Initialize the application before processing the update
+    await application.initialize()
     update = Update.de_json(request.get_json(force=True), application.bot)
     await application.process_update(update)
+    # And shutdown afterwards
+    await application.shutdown()
     return "OK", 200
 
 # --- SETUP ROUTES FOR SERVER ---
 @app.route('/set_webhook', methods=['GET'])
 async def setup_webhook():
+    # Also initialize and shutdown here
+    await application.initialize()
     webhook_url = f"{RENDER_URL}/telegram"
-    async with httpx.AsyncClient() as client:
-        response = await client.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook", json={"url": webhook_url})
-        if response.status_code == 200 and response.json().get("ok"):
-            return "Telegram webhook setup OK"
-        else:
-            return f"Telegram webhook setup failed: {response.text}", 500
+    await application.bot.set_webhook(url=webhook_url)
+    await application.shutdown()
+    return "Telegram webhook setup OK"
     
 @app.route('/')
 def index():
-    return "Bot is running with Razorpay and updated code!", 200
+    return "Bot is running with the final fixes!", 200
