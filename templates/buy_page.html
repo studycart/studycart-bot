@@ -13,6 +13,7 @@
         .button:hover { background-color: #0056b3; }
         .processing { background-color: #6c757d; cursor: not-allowed; }
     </style>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -23,7 +24,6 @@
     </div>
 
     <script>
-        // Get the user ID from the URL (passed from our bot)
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('user_id');
         const payButton = document.getElementById('pay-button');
@@ -34,25 +34,50 @@
             payButton.disabled = true;
 
             try {
-                // Ask our backend to create a payment link
-                const response = await fetch('/create_payment', {
+                // Ask our backend to create a Razorpay order
+                const response = await fetch('/create_payment_razorpay', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_id: userId }),
                 });
 
                 const data = await response.json();
 
-                if (data.payment_url) {
-                    // Redirect to Easebuzz to complete payment
-                    window.location.href = data.payment_url;
-                } else {
-                    payButton.innerText = 'Error! Try Again';
-                    payButton.classList.remove('processing');
-                    payButton.disabled = false;
+                if (data.error) {
+                    throw new Error(data.error);
                 }
+                
+                // --- Razorpay Checkout Logic ---
+                const options = {
+                    "key": data.key_id,
+                    "amount": data.amount, 
+                    "currency": "INR",
+                    "name": "Studycart Store",
+                    "description": "Digital File Purchase",
+                    "order_id": data.order_id,
+                    "handler": function (response){
+                        // This function is called after a successful payment
+                        alert("Payment successful! Your file will be sent to your chat shortly.");
+                        window.Telegram.WebApp.close(); // Close the web app window
+                    },
+                    "prefill": {
+                        "name": "Valued Customer",
+                        "email": "customer@example.com",
+                        "contact": "9999999999"
+                    },
+                    "theme": {
+                        "color": "#3399cc"
+                    }
+                };
+                const rzp1 = new Razorpay(options);
+                rzp1.on('payment.failed', function (response){
+                        alert("Payment failed. Please try again.");
+                        payButton.innerText = 'Pay ₹1 Now';
+                        payButton.classList.remove('processing');
+                        payButton.disabled = false;
+                });
+                rzp1.open(); // Open the Razorpay payment pop-up
+
             } catch (error) {
                 console.error('Error:', error);
                 payButton.innerText = 'Error! Try Again';
