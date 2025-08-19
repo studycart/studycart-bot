@@ -24,14 +24,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command and sends a payment link button."""
     user_id = update.effective_chat.id
     
-    # This URL points to a new route on our server that creates the payment and redirects
+    # This URL points to our server to create the payment
     payment_start_url = f"{RENDER_URL}/pay?user_id={user_id}"
     
-    keyboard = [[InlineKeyboardButton("Buy Now (₹1)", url=payment_start_url)]]
+    # --- TEXT FROM YOUR SCREENSHOT ---
+    message_text = (
+        "Join Our Official Channel For More - \n"
+        "https://t.me/+ZLiGAAJIsZlhNTII\n\n"
+        "Whatsapp Channel-\n"
+        "https://whatsapp.com/channel/0029VamrQXx9WtCAV6CBul2m"
+    )
+    
+    # --- KEYBOARD FROM YOUR SCREENSHOT ---
+    keyboard = [[InlineKeyboardButton("Buy", url=payment_start_url)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "Welcome! Click the button below to purchase your exclusive file for just ₹1.",
+        text=message_text,
         reply_markup=reply_markup
     )
 
@@ -120,4 +129,4 @@ async def setup_webhook():
     
 @app.route('/')
 def index():
-    return "Bot is running (no mini-app version)!", 200
+    return "Bot is running!", 200
