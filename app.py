@@ -6,36 +6,32 @@ from flask import Flask, redirect, request
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# --- CONFIGURATION (Set these as Environment Variables on your server) ---
+# --- CONFIGURATION ---
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
 RENDER_URL = os.getenv('WEB_URL') 
 WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
-# The file you want to send after successful payment
-FILE_PATH = "file_to_send.pdf" 
+FILE_PATH = "file_to_send.pdf"
 
 # --- FLASK APP & BOT INITIALIZATION ---
 app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# --- TELEGRAM BOT HANDLER ---
+# --- TELEGRAM BOT HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command and sends a payment link button."""
     user_id = update.effective_chat.id
     
-    # This URL points to a route on our server that creates the payment and redirects
+    # This URL points to a new route on our server that creates the payment and redirects
     payment_start_url = f"{RENDER_URL}/pay?user_id={user_id}"
     
-    keyboard = [[InlineKeyboardButton("Buy", url=payment_start_url)]]
+    keyboard = [[InlineKeyboardButton("Buy Now (₹1)", url=payment_start_url)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "Join Our Official Channel For More - \n"
-        "https://t.me/+ZliGAAJIsZlhNTII\n\n"
-        "Whatsapp Channel - \n"
-        "https://whatsapp.com/channel/0029VamrQXx9WtCAV6CBuI2m",
+        "Welcome! Click the button below to purchase your exclusive file for just ₹1.",
         reply_markup=reply_markup
     )
 
@@ -50,7 +46,7 @@ def pay_redirect():
     if not user_id:
         return "Error: User ID is missing.", 400
 
-    amount_in_paise = 100 # ₹1 = 100 paise
+    amount_in_paise = 100 
     order_payload = {
         'amount': amount_in_paise,
         'currency': 'INR',
@@ -60,8 +56,13 @@ def pay_redirect():
     
     try:
         order = razorpay_client.order.create(data=order_payload)
-        payment_link = order['short_url']
-        return redirect(payment_link) # Immediately send the user to the payment page
+        order_id = order['id']
+        
+        # --- THE FIX IS HERE ---
+        # Manually construct the payment URL instead of looking for 'short_url'
+        payment_link = f"https://checkout.razorpay.com/v1/checkout.html?key_id={RAZORPAY_KEY_ID}&order_id={order_id}"
+        
+        return redirect(payment_link)
     except Exception as e:
         print(f"Error creating Razorpay order: {e}")
         return "Error creating payment link. Please try again later.", 500
@@ -79,7 +80,9 @@ def razorpay_webhook():
         return "Invalid signature", 400
 
     webhook_data = request.json
-    if webhook_data.get('event') == 'payment.captured':
+    event = webhook_data.get('event')
+
+    if event == 'payment.captured':
         payment_entity = webhook_data['payload']['payment']['entity']
         user_id = payment_entity['notes'].get('telegram_user_id')
 
@@ -118,5 +121,4 @@ async def setup_webhook():
     
 @app.route('/')
 def index():
-    return "Bot is running!", 200
-    
+    return "Bot is running (no mini-app version)!", 200
