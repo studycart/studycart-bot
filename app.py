@@ -2,9 +2,8 @@ import os
 import razorpay
 import asyncio
 import httpx
-import json
-from flask import Flask, render_template, request, jsonify
-from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from flask import Flask, redirect, request
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 # --- CONFIGURATION ---
@@ -18,17 +17,17 @@ FILE_PATH = "file_to_send.pdf"
 # --- FLASK APP & BOT INITIALIZATION ---
 app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
-
-# Build the Telegram Bot Application
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # --- TELEGRAM BOT HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the /start command."""
+    """Handles the /start command and sends a payment link button."""
     user_id = update.effective_chat.id
-    web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
     
-    keyboard = [[InlineKeyboardButton("Buy Now (₹1)", web_app=WebAppInfo(url=web_app_url))]]
+    # This URL points to a new route on our server that creates the payment and redirects
+    payment_start_url = f"{RENDER_URL}/pay?user_id={user_id}"
+    
+    keyboard = [[InlineKeyboardButton("Buy Now (₹1)", url=payment_start_url)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
@@ -36,21 +35,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-# Add the /start command handler to the application
 application.add_handler(CommandHandler("start", start))
 
 # --- FLASK ROUTES ---
-@app.route('/buy_page')
-def buy_page():
-    return render_template('buy_page.html')
-
-@app.route('/create_payment_razorpay', methods=['POST'])
-def create_payment_razorpay():
-    data = request.json
-    user_id = data.get('user_id')
+@app.route('/pay')
+def pay_redirect():
+    """Creates a Razorpay order and redirects the user to the payment page."""
+    user_id = request.args.get('user_id')
     
     if not user_id:
-        return jsonify({'error': 'User ID is missing'}), 400
+        return "Error: User ID is missing.", 400
 
     amount_in_paise = 100 
     order_payload = {
@@ -62,14 +56,15 @@ def create_payment_razorpay():
     
     try:
         order = razorpay_client.order.create(data=order_payload)
-        response_data = {
-            'order_id': order['id'],
-            'key_id': RAZORPAY_KEY_ID,
-            'amount': order['amount']
-        }
-        return jsonify(response_data)
+        order_id = order['id']
+        
+        # Manually construct the payment URL
+        payment_link = f"https://checkout.razorpay.com/v1/checkout.html?key_id={RAZORPAY_KEY_ID}&order_id={order_id}"
+        
+        return redirect(payment_link)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error creating Razorpay order: {e}")
+        return "Error creating payment link. Please try again later.", 500
 
 @app.route('/webhook/razorpay', methods=['POST'])
 def razorpay_webhook():
@@ -100,7 +95,6 @@ def razorpay_webhook():
                             document=document,
                             caption="Thank you for your purchase! Here is your file."
                         )
-                    print(f"Successfully sent file to user {user_id}")
                 except Exception as e:
                     print(f"Failed to send file to user {user_id}: {e}")
             
@@ -108,21 +102,16 @@ def razorpay_webhook():
                 
     return "Webhook processed", 200
 
-# This is the new webhook handler for Telegram v20
 @app.route('/telegram', methods=['POST'])
 async def telegram_webhook_handler():
-    # THE FIX IS HERE: Initialize the application before processing the update
     await application.initialize()
     update = Update.de_json(request.get_json(force=True), application.bot)
     await application.process_update(update)
-    # And shutdown afterwards
     await application.shutdown()
     return "OK", 200
 
-# --- SETUP ROUTES FOR SERVER ---
 @app.route('/set_webhook', methods=['GET'])
 async def setup_webhook():
-    # Also initialize and shutdown here
     await application.initialize()
     webhook_url = f"{RENDER_URL}/telegram"
     await application.bot.set_webhook(url=webhook_url)
@@ -131,5 +120,4 @@ async def setup_webhook():
     
 @app.route('/')
 def index():
-    return "Bot is running with the final fixes!", 200
-    
+    return "Bot is running (no mini-app version)!", 200
