@@ -55,7 +55,7 @@ def pay_redirect():
     if not user_id:
         return "Error: User ID is missing.", 400
 
-    amount_in_paise = 100 
+    amount_in_paise = 1000
     order_payload = {
         'amount': amount_in_paise,
         'currency': 'INR',
