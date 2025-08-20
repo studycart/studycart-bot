@@ -5,14 +5,12 @@ import razorpay
 
 app = Flask(__name__)
 
-# 🔐 Secrets (replace with env vars in production)
 RAZORPAY_KEY_ID = 'your_key_id'
 RAZORPAY_KEY_SECRET = 'your_key_secret'
 RAZORPAY_WEBHOOK_SECRET = 'your_webhook_secret'
 TELEGRAM_BOT_TOKEN = 'your_telegram_bot_token'
 
-# 📄 Public file URL (hosted on Vercel or CDN)
-FILE_URL = 'https://yourdomain.com/file_to_send.pdf'
+FILE_URL = 'https://your-vercel-domain.com/file_to_send.pdf'
 
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
@@ -20,25 +18,26 @@ razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 def home():
     return send_from_directory('.', 'buy_page.html')
 
-@app.route('/create_order', methods=['POST'])
-def create_order_route():
+@app.route('/create_payment_razorpay', methods=['POST'])
+def create_payment_razorpay():
     data = request.get_json()
-    amount = int(data.get('amount', 1)) * 100  # INR to paise
-    chat_id = str(data.get('chat_id'))
+    user_id = str(data.get('user_id'))
+    amount = int(data.get('amount', 1)) * 100
 
     order = razorpay_client.order.create({
         "amount": amount,
         "currency": "INR",
-        "receipt": f"receipt_{chat_id}",
+        "receipt": f"receipt_{user_id}",
         "notes": {
-            "telegram_chat_id": chat_id
+            "telegram_chat_id": user_id
         }
     })
 
     return {
         "order_id": order['id'],
         "amount": order['amount'],
-        "currency": order['currency']
+        "currency": order['currency'],
+        "key_id": RAZORPAY_KEY_ID
     }
 
 @app.route('/webhook/razorpay', methods=['POST'])
