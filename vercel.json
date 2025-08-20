@@ -5,9 +5,6 @@
       "src": "/(pay|set_webhook|telegram|webhook/razorpay|create_payment_razorpay|buy_page)",
       "dest": "app.py"
     },
-    {
-      "src": "/(.*)",
-      "dest": "/public/$1"
-    }
+    { "src": "/(.*)", "dest": "index.html" }
   ]
 }
