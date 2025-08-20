@@ -13,16 +13,16 @@ RENDER_URL = os.getenv('WEB_URL')
 WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
 FILE_PATH = "file_to_send.pdf"
 
-# Validate env vars early
+# Validate environment variables
 if not all([TELEGRAM_TOKEN, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RENDER_URL, WEBHOOK_SECRET]):
     raise RuntimeError("Missing one or more required environment variables")
 
-# --- APP & BOT INITIALIZATION ---
+# --- FLASK & BOT INITIALIZATION ---
 app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# Initialise the Telegram bot once at cold start
+# Initialise the Telegram bot immediately (works in serverless)
 loop = asyncio.get_event_loop()
 if not loop.is_running():
     loop.run_until_complete(application.initialize())
@@ -30,7 +30,6 @@ if not loop.is_running():
 
 # --- TELEGRAM HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the /start command."""
     user_id = update.effective_chat.id
     web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
 
@@ -60,13 +59,12 @@ def buy_page():
 def create_payment_razorpay():
     data = request.json or {}
     user_id = data.get('user_id')
-    amount_rupees = int(data.get('amount', 10))  # Default ₹10
+    amount_rupees = int(data.get('amount', 10))  # default ₹10
 
     if not user_id:
         return jsonify({'error': 'User ID is missing'}), 400
 
-    # Convert to paise
-    amount_paise = amount_rupees * 100
+    amount_paise = amount_rupees * 100  # Convert to paise
 
     order_payload = {
         'amount': amount_paise,
