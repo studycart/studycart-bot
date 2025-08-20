@@ -22,7 +22,7 @@ app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# Initialise the Telegram bot immediately (works in serverless)
+# Initialise Telegram bot immediately (cold start in serverless)
 loop = asyncio.get_event_loop()
 if not loop.is_running():
     loop.run_until_complete(application.initialize())
@@ -32,7 +32,6 @@ if not loop.is_running():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_chat.id
     web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
-
     keyboard = [[InlineKeyboardButton("Buy", web_app=WebAppInfo(url=web_app_url))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -51,6 +50,10 @@ application.add_handler(CommandHandler("start", start))
 application.add_error_handler(error_handler)
 
 # --- FLASK ROUTES ---
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204  # prevent favicon 404 spam
+
 @app.route('/buy_page')
 def buy_page():
     return render_template('buy_page.html')
@@ -59,7 +62,7 @@ def buy_page():
 def create_payment_razorpay():
     data = request.json or {}
     user_id = data.get('user_id')
-    amount_rupees = int(data.get('amount', 10))  # default ₹10
+    amount_rupees = int(data.get('amount', 10))  # Default ₹10
 
     if not user_id:
         return jsonify({'error': 'User ID is missing'}), 400
@@ -81,6 +84,7 @@ def create_payment_razorpay():
             'amount': order['amount']
         })
     except Exception as e:
+        print("Razorpay create order error:", e)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/webhook/razorpay', methods=['POST'])
@@ -118,7 +122,7 @@ async def razorpay_webhook():
                             caption="Thank you for your purchase! Here is your file."
                         )
             except Exception as e:
-                print(f"Failed to send file to user {user_id}: {e}")
+                print(f"Failed to send file to user {user_id}:", e)
 
     return "Webhook processed", 200
 
