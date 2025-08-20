@@ -115,7 +115,6 @@ async def telegram_webhook_handler():
     await application.initialize()
     update = Update.de_json(request.get_json(force=True), application.bot)
     await application.process_update(update)
-    await application.shutdown()
     return "OK", 200
 
 @app.route('/set_webhook', methods=['GET'])
