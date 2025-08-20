@@ -46,7 +46,7 @@
     <div class="container">
         <h1>Final Step!</h1>
         <p>Complete your secure payment to get your file.</p>
-        <button id="pay-button" class="button">Pay Now</button>
+        <button id="pay-button" class="button">Pay ₹1 Now</button>
     </div>
 
     <script>
@@ -62,7 +62,7 @@
                 const response = await fetch(`${window.location.origin}/create_payment_razorpay`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, amount: 10 }) // ₹10 in rupees
+                    body: JSON.stringify({ user_id: userId, amount: 1 }) // ₹1 in rupees
                 });
 
                 if (!response.ok) {
@@ -88,7 +88,7 @@
                 const rzp1 = new Razorpay(options);
                 rzp1.on('payment.failed', function (response){
                     alert("Payment failed. Please try again.");
-                    payButton.innerText = 'Pay Now';
+                    payButton.innerText = 'Pay ₹1 Now';
                     payButton.disabled = false;
                 });
                 rzp1.open();
