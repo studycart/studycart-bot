@@ -2,28 +2,34 @@ import os
 import razorpay
 import asyncio
 import httpx
+import nest_asyncio
 from flask import Flask, render_template, request, jsonify
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
+
+# Apply the patch for nested asyncio loops
+nest_asyncio.apply()
 
 # --- CONFIGURATION ---
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
-RENDER_URL = os.getenv('WEB_URL')
+WEB_URL = os.getenv('WEB_URL') 
 WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
 FILE_PATH = "file_to_send.pdf"
 
 # --- FLASK APP & BOT INITIALIZATION ---
 app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
+# Build the Telegram Bot Application
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # --- TELEGRAM BOT HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command."""
     user_id = update.effective_chat.id
-    web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
+    web_app_url = f"{WEB_URL}/buy_page?user_id={user_id}"
     
     keyboard = [[InlineKeyboardButton("Buy", web_app=WebAppInfo(url=web_app_url))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -51,7 +57,7 @@ def buy_page():
 def create_payment_razorpay():
     data = request.json
     user_id = data.get('user_id')
-    amount = data.get('amount', 100)
+    amount = data.get('amount', 1000)
     
     if not user_id:
         return jsonify({'error': 'User ID is missing'}), 400
@@ -94,36 +100,47 @@ def razorpay_webhook():
         user_id = payment_entity['notes'].get('telegram_user_id')
 
         if user_id:
-            async def send_file():
-                bot = Bot(token=TELEGRAM_TOKEN)
-                try:
-                    with open(FILE_PATH, 'rb') as document:
-                        await bot.send_document(
-                            chat_id=int(user_id),
-                            document=document,
-                            caption="Thank you for your purchase! Here is your file."
-                        )
-                except Exception as e:
-                    print(f"Failed to send file to user {user_id}: {e}")
-            
-            asyncio.run(send_file())
+            # Run the async send_file function in the existing event loop
+            asyncio.get_event_loop().run_until_complete(send_file(user_id))
                 
     return "Webhook processed", 200
+    
+async def send_file(user_id):
+    """Coroutine to send the file."""
+    try:
+        with open(FILE_PATH, 'rb') as document:
+            await application.bot.send_document(
+                chat_id=int(user_id),
+                document=document,
+                caption="Thank you for your purchase! Here is your file."
+            )
+        print(f"Successfully sent file to user {user_id}")
+    except Exception as e:
+        print(f"Failed to send file to user {user_id}: {e}")
 
 @app.route('/telegram', methods=['POST'])
 async def telegram_webhook_handler():
-    await application.initialize()
     update = Update.de_json(request.get_json(force=True), application.bot)
     await application.process_update(update)
     return "OK", 200
 
-@app.route('/set_webhook', methods=['GET'])
-async def setup_webhook():
-    await application.initialize()
-    webhook_url = f"{RENDER_URL}/telegram"
+# --- SETUP FUNCTION (RUNS ONCE AT STARTUP) ---
+async def setup():
+    webhook_url = f"{WEB_URL}/telegram"
     await application.bot.set_webhook(url=webhook_url)
+
+@app.route('/set_webhook', methods=['GET'])
+def set_webhook_route():
+    # Run the setup function in the event loop
+    asyncio.get_event_loop().run_until_complete(setup())
     return "Telegram webhook setup OK"
     
 @app.route('/')
 def index():
-    return "Bot is running (Mini-App Version)!", 200
+    return "Bot is running!", 200
+
+# Initialize the bot once when the app starts
+if __name__ != "__main__":
+    loop = asyncio.get_event_loop()
+    if not loop.is_running():
+        loop.run_until_complete(application.initialize())
