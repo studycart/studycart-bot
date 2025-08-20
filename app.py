@@ -40,7 +40,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log the error and send a message to the bot's owner."""
+    print(f"Update {update} caused error {context.error}")
+
 application.add_handler(CommandHandler("start", start))
+application.add_error_handler(error_handler)
+
 
 # --- FLASK ROUTES ---
 @app.route('/buy_page')
