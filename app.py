@@ -23,7 +23,6 @@ application = Application.builder().token(TELEGRAM_TOKEN).build()
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command."""
     user_id = update.effective_chat.id
-    # URL for the Web App (mini-app) button
     web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
     
     keyboard = [[InlineKeyboardButton("Buy", web_app=WebAppInfo(url=web_app_url))]]
@@ -52,7 +51,7 @@ def buy_page():
 def create_payment_razorpay():
     data = request.json
     user_id = data.get('user_id')
-    amount = data.get('amount', 100) # Default to 100 paise (Rs. 1)
+    amount = data.get('amount', 100)
     
     if not user_id:
         return jsonify({'error': 'User ID is missing'}), 400
