@@ -16,14 +16,20 @@ FILE_PATH = "file_to_send.pdf"
 if not all([TELEGRAM_TOKEN, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RENDER_URL, WEBHOOK_SECRET]):
     raise RuntimeError("Missing one or more required environment variables")
 
-# --- APP INITIALIZATION ---
+# --- APP & BOT INITIALIZATION ---
 app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
-# Initialize Telegram bot once
+# Initialize Telegram bot ONCE
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# --- TELEGRAM BOT HANDLERS ---
+@app.before_serving   # Flask 3.x hook, runs once before serving requests
+async def init_bot():
+    if not application.running:
+        await application.initialize()
+        print("Telegram bot initialized")
+
+# --- TELEGRAM HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command."""
     user_id = update.effective_chat.id
@@ -47,14 +53,6 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 application.add_handler(CommandHandler("start", start))
 application.add_error_handler(error_handler)
 
-# --- STARTUP HOOK ---
-@app.before_first_request
-def init_bot():
-    # Initialize bot application once
-    loop = asyncio.get_event_loop()
-    if not application.running:
-        loop.run_until_complete(application.initialize())
-
 # --- FLASK ROUTES ---
 @app.route('/buy_page')
 def buy_page():
@@ -64,13 +62,13 @@ def buy_page():
 def create_payment_razorpay():
     data = request.json or {}
     user_id = data.get('user_id')
-    amount_rupees = data.get('amount', 10)  # default ₹10
+    amount_rupees = int(data.get('amount', 10))  # default ₹10
 
     if not user_id:
         return jsonify({'error': 'User ID is missing'}), 400
 
-    # Convert to paise (smallest unit)
-    amount_paise = int(amount_rupees) * 100
+    # Convert to paise
+    amount_paise = amount_rupees * 100
 
     order_payload = {
         'amount': amount_paise,
