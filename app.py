@@ -1,5 +1,6 @@
 import os
 import razorpay
+import asyncio
 from flask import Flask, render_template, request, jsonify
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
@@ -12,25 +13,27 @@ RENDER_URL = os.getenv('WEB_URL')
 WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
 FILE_PATH = "file_to_send.pdf"
 
+# Validate env vars early
 if not all([TELEGRAM_TOKEN, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RENDER_URL, WEBHOOK_SECRET]):
     raise RuntimeError("Missing one or more required environment variables")
 
-# --- FLASK APP & BOT INITIALIZATION ---
+# --- APP & BOT INITIALIZATION ---
 app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# --- STARTUP HOOK (Flask 3.x compatible) ---
-@app.before_serving
-async def init_bot():
-    if not application.running:
-        await application.initialize()
-        print("Telegram bot initialized")
+# Initialise the Telegram bot once at cold start
+loop = asyncio.get_event_loop()
+if not loop.is_running():
+    loop.run_until_complete(application.initialize())
+    print("Telegram bot initialized")
 
-# --- TELEGRAM BOT HANDLERS ---
+# --- TELEGRAM HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handles the /start command."""
     user_id = update.effective_chat.id
     web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
+
     keyboard = [[InlineKeyboardButton("Buy", web_app=WebAppInfo(url=web_app_url))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -62,7 +65,8 @@ def create_payment_razorpay():
     if not user_id:
         return jsonify({'error': 'User ID is missing'}), 400
 
-    amount_paise = amount_rupees * 100  # Convert to paise
+    # Convert to paise
+    amount_paise = amount_rupees * 100
 
     order_payload = {
         'amount': amount_paise,
