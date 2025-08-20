@@ -39,11 +39,6 @@
     .button:hover {
       background-color: #0056b3;
     }
-    .fallback {
-      margin-top: 16px;
-      font-size: 14px;
-      color: #888;
-    }
   </style>
 </head>
 <body>
@@ -51,22 +46,18 @@
     <h1>Final Step</h1>
     <p>Pay ₹1 to receive your file instantly.</p>
     <button id="pay-button" class="button">Pay ₹1 Now</button>
-    <div class="fallback" id="fallback" style="display:none;">
-      Having trouble? <a href="#" id="fallback-link">Open in browser</a>
-    </div>
   </div>
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const userId = urlParams.get('user_id');
     const payButton = document.getElementById('pay-button');
-    const fallback = document.getElementById('fallback');
-    const fallbackLink = document.getElementById('fallback-link');
 
-    // Detect Telegram Web and show fallback
-    if (Telegram.WebApp.platform === 'web') {
-      fallback.style.display = 'block';
-      fallbackLink.href = `https://studycart.store/buy_page?user_id=${userId}`;
+    // Detect Telegram Web or Android WebView and redirect
+    const platform = Telegram?.WebApp?.platform || '';
+    if (platform === 'web' || navigator.userAgent.includes('Android')) {
+      Telegram.WebApp.openLink(`https://studycart.store/buy_page?user_id=${userId}`);
+      setTimeout(() => Telegram.WebApp.close(), 1000);
     }
 
     payButton.addEventListener('click', async () => {
