@@ -10,7 +10,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
-RENDER_URL = os.getenv('WEB_URL') 
+WEB_URL = os.getenv('WEB_URL') 
 WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
 FILE_PATH = "file_to_send.pdf"
 
@@ -24,7 +24,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command."""
     user_id = update.effective_chat.id
     # URL for the Web App (mini-app) button
-    web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
+    web_app_url = f"{WEB_URL}/buy_page?user_id={user_id}"
     
     keyboard = [[InlineKeyboardButton("Buy", web_app=WebAppInfo(url=web_app_url))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -122,7 +122,7 @@ async def telegram_webhook_handler():
 @app.route('/set_webhook', methods=['GET'])
 async def setup_webhook():
     await application.initialize()
-    webhook_url = f"{RENDER_URL}/telegram"
+    webhook_url = f"{WEB_URL}/telegram"
     await application.bot.set_webhook(url=webhook_url)
     await application.shutdown()
     return "Telegram webhook setup OK"
