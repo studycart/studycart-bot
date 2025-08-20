@@ -75,7 +75,7 @@ def create_payment_razorpay():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/webhook/razorpay', methods=['POST'])
-async def razorpay_webhook(): # ADDED 'async'
+async def razorpay_webhook():
     webhook_body = request.data
     webhook_signature = request.headers.get('x-razorpay-signature')
     
@@ -97,7 +97,7 @@ async def razorpay_webhook(): # ADDED 'async'
             bot = Bot(token=TELEGRAM_TOKEN)
             try:
                 with open(FILE_PATH, 'rb') as document:
-                    await bot.send_document( # CHANGED: AWAIT bot call directly
+                    await bot.send_document(
                         chat_id=int(user_id),
                         document=document,
                         caption="Thank you for your purchase! Here is your file."
@@ -112,7 +112,6 @@ async def telegram_webhook_handler():
     await application.initialize()
     update = Update.de_json(request.get_json(force=True), application.bot)
     await application.process_update(update)
-    await application.shutdown()
     return "OK", 200
 
 @app.route('/set_webhook', methods=['GET'])
@@ -120,7 +119,6 @@ async def setup_webhook():
     await application.initialize()
     webhook_url = f"{RENDER_URL}/telegram"
     await application.bot.set_webhook(url=webhook_url)
-    await application.shutdown()
     return "Telegram webhook setup OK"
     
 @app.route('/')
