@@ -10,7 +10,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
-RENDER_URL = os.getenv('WEB_URL') # Vercel uses VERCEL_URL, but we can stick to WEB_URL
+RENDER_URL = os.getenv('WEB_URL')
 WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
 FILE_PATH = "file_to_send.pdf"
 
@@ -23,7 +23,6 @@ application = Application.builder().token(TELEGRAM_TOKEN).build()
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the /start command."""
     user_id = update.effective_chat.id
-    # URL for the Web App (mini-app) button
     web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
     
     keyboard = [[InlineKeyboardButton("Buy", web_app=WebAppInfo(url=web_app_url))]]
@@ -52,7 +51,7 @@ def buy_page():
 def create_payment_razorpay():
     data = request.json
     user_id = data.get('user_id')
-    amount = data.get('amount', 100) # Default to 1000 paise (Rs. 10)
+    amount = data.get('amount', 100)
     
     if not user_id:
         return jsonify({'error': 'User ID is missing'}), 400
@@ -76,7 +75,7 @@ def create_payment_razorpay():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/webhook/razorpay', methods=['POST'])
-def razorpay_webhook():
+async def razorpay_webhook(): # ADDED 'async'
     webhook_body = request.data
     webhook_signature = request.headers.get('x-razorpay-signature')
     
@@ -95,20 +94,17 @@ def razorpay_webhook():
         user_id = payment_entity['notes'].get('telegram_user_id')
 
         if user_id:
-            async def send_file():
-                bot = Bot(token=TELEGRAM_TOKEN)
-                try:
-                    with open(FILE_PATH, 'rb') as document:
-                        await bot.send_document(
-                            chat_id=int(user_id),
-                            document=document,
-                            caption="Thank you for your purchase! Here is your file."
-                        )
-                except Exception as e:
-                    print(f"Failed to send file to user {user_id}: {e}")
+            bot = Bot(token=TELEGRAM_TOKEN)
+            try:
+                with open(FILE_PATH, 'rb') as document:
+                    await bot.send_document( # CHANGED: AWAIT bot call directly
+                        chat_id=int(user_id),
+                        document=document,
+                        caption="Thank you for your purchase! Here is your file."
+                    )
+            except Exception as e:
+                print(f"Failed to send file to user {user_id}: {e}")
             
-            asyncio.run(send_file())
-                
     return "Webhook processed", 200
 
 @app.route('/telegram', methods=['POST'])
