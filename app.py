@@ -52,7 +52,7 @@ def buy_page():
 def create_payment_razorpay():
     data = request.json
     user_id = data.get('user_id')
-    amount = data.get('amount', 1000) # Default to 1000 paise (Rs. 10)
+    amount = data.get('amount', 100) # Default to 1000 paise (Rs. 10)
     
     if not user_id:
         return jsonify({'error': 'User ID is missing'}), 400
