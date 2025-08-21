@@ -66,7 +66,7 @@ def create_payment_razorpay():
         'amount': amount,
         'currency': 'INR',
         'receipt': f'receipt_user_{user_id}',
-        'notes': {'telegram_user_id': str(user_id)}
+        'notes': {'customer_id': str(user_id)}
     }
 
     try:
@@ -97,7 +97,7 @@ async def razorpay_webhook():
 
     if event == 'payment.captured':
         payment_entity = webhook_data['payload']['payment']['entity']
-        user_id = payment_entity['notes'].get('telegram_user_id')
+        user_id = payment_entity['notes'].get('customer_id')
 
         if user_id:
             bot = Bot(token=TELEGRAM_TOKEN)
