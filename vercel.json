@@ -1,15 +1,14 @@
 {
-    "builds": [
-        { "src": "app.py", "use": "@vercel/python" }
-    ],
-    "routes": [
-        {
-            "src": "/(set_webhook|telegram|webhook/razorpay|create_payment_razorpay|buy_page)",
-            "dest": "app.py"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/public/$1"
-        }
-    ]
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ]
 }
