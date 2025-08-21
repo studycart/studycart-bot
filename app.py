@@ -60,9 +60,18 @@ def home():
 def buy_page():
     return render_template("buy_page.html")
 
-# ✅ Serve static HTML pages (about, contact, refund, etc.)
+# ✅ Serve static HTML pages like /contact, /privacy, /refund
 @app.route("/<page>")
 def static_html(page):
+    file_path = f"{page}.html"
+    full_path = os.path.join(app.static_folder, file_path)
+    if os.path.isfile(full_path):
+        return send_from_directory("static", file_path)
+    return "Page not found", 404
+
+# ✅ Also support direct .html routes like /contact.html
+@app.route("/<page>.html")
+def static_html_with_extension(page):
     file_path = f"{page}.html"
     full_path = os.path.join(app.static_folder, file_path)
     if os.path.isfile(full_path):
