@@ -6,11 +6,35 @@
     <title>Complete Your Purchase</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; text-align: center; }
-        .container { padding: 20px; background-color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            text-align: center;
+        }
+        .container {
+            padding: 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
         h1 { color: #1c1e21; }
         p { color: #606770; }
-        .button { background-color: #007bff; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
+        .button {
+            background-color: #007bff;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
         .button:hover { background-color: #0056b3; }
     </style>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
@@ -28,6 +52,12 @@
         const userId = urlParams.get('user_id');
         const payButton = document.getElementById('pay-button');
 
+        // Extract Telegram user info for backend logging only
+        const tgUser = window.Telegram.WebApp.initDataUnsafe.user || {};
+        const telegram_name = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ');
+        const telegram_username = tgUser.username || '';
+        const telegram_user_id = tgUser.id || '';
+
         payButton.addEventListener('click', async () => {
             payButton.innerText = 'Processing...';
             payButton.disabled = true;
@@ -36,37 +66,41 @@
                 const response = await fetch('/create_payment_razorpay', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, amount: 100 }), // Using Rs. 10 for Live Mode
+                    body: JSON.stringify({
+                        user_id: userId,
+                        amount: 100, // Rs. 1.00 for testing
+                        telegram_user_id: telegram_user_id,
+                        telegram_name: telegram_name,
+                        telegram_username: telegram_username
+                    })
                 });
 
                 const data = await response.json();
 
                 const options = {
-                    "key": data.key_id,
-                    "amount": data.amount,  
-                    "currency": "INR",
-                    "name": "Studycart Store",
-                    "description": "Digital File Purchase",
-                    "order_id": data.order_id,
-                    "handler": function (response){
+                    key: data.key_id,
+                    amount: data.amount,
+                    currency: "INR",
+                    name: "Studycart Store",
+                    description: "Digital File Purchase",
+                    order_id: data.order_id,
+                    handler: function (response) {
                         alert("Payment successful! Your file will be sent to your chat shortly.");
                         window.Telegram.WebApp.close();
                     },
-                    // --- THIS IS THE ADDED CHANGE ---
-                    "prefill": {
-                        "name": "Valued Customer",
-                        "email": "customer@example.com",
-                        "contact": "9999999999"
+                    prefill: {
+                        name: "StudyCart Customer",
+                        email: "customer@studycart.store",
+                        contact: "9999999999"
                     },
-                    // --- END OF CHANGE ---
-                    "theme": { "color": "#3399cc" }
+                    theme: { color: "#3399cc" }
                 };
 
                 const rzp1 = new Razorpay(options);
-                rzp1.on('payment.failed', function (response){
-                        alert("Payment failed. Please try again.");
-                        payButton.innerText = 'Pay Now';
-                        payButton.disabled = false;
+                rzp1.on('payment.failed', function () {
+                    alert("Payment failed. Please try again.");
+                    payButton.innerText = 'Pay Now';
+                    payButton.disabled = false;
                 });
                 rzp1.open();
 
