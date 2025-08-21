@@ -4,14 +4,6 @@
     {
       "src": "/(pay|set_webhook|telegram|webhook/razorpay|create_payment_razorpay|buy_page|bot-status)",
       "dest": "app.py"
-    },
-    {
-      "src": "/style.css",
-      "dest": "/public/style.css"
-    },
-    {
-      "src": "/",
-      "dest": "/public/index.html"
     }
   ]
 }
