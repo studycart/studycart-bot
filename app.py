@@ -82,7 +82,7 @@ def create_payment_razorpay():
 
 @app.route('/webhook/razorpay', methods=['POST'])
 async def razorpay_webhook():
-    webhook_body = request.data
+    webhook_body = request.data.decode('utf-8')
     webhook_signature = request.headers.get('x-razorpay-signature')
 
     try:
