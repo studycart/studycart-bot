@@ -1,172 +1,130 @@
+app.py
+
 import os
-import json
-import time
-import logging
-from flask import Flask, request, jsonify, render_template, send_from_directory
-from telegram import Bot
 import razorpay
-from dotenv import load_dotenv
+import asyncio
+import httpx
+from flask import Flask, render_template, request, jsonify
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-load_dotenv()
+# --- CONFIGURATION ---
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+RENDER_URL = os.getenv('WEB_URL')  # e.g. https://studycart.store
+WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
 
-app = Flask(__name__, template_folder="templates", static_folder="static")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FILE_PATH = os.path.join(BASE_DIR, "file_to_send.pdf")
 
-# ✅ Logging setup
-logging.basicConfig(level=logging.INFO)
-
-# ✅ Environment variables
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
-RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
-WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET")
-FILE_PATH = "file_to_send.pdf"
-
-# ✅ Razorpay client
+# --- FLASK APP & BOT INITIALIZATION ---
+app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# ✅ Ensure order_map.json exists
-if not os.path.exists("order_map.json"):
-    with open("order_map.json", "w") as f:
-        json.dump({}, f)
+# --- TELEGRAM BOT HANDLERS ---
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_chat.id
+    web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
 
-# ✅ Internal mapping helpers
-def save_order_mapping(order_id, telegram_user_id):
-    try:
-        with open("order_map.json", "r+") as f:
-            data = json.load(f)
-            data[order_id] = telegram_user_id
-            f.seek(0)
-            json.dump(data, f)
-            f.truncate()
-    except Exception as e:
-        logging.error(f"Error saving order mapping: {e}")
+    keyboard = [[InlineKeyboardButton("Buy", web_app=WebAppInfo(url=web_app_url))]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-def get_telegram_user(order_id):
-    try:
-        with open("order_map.json", "r") as f:
-            data = json.load(f)
-            return data.get(order_id)
-    except Exception as e:
-        logging.error(f"Error retrieving user from mapping: {e}")
-        return None
+    message_text = (
+        "Join Our Official Channel For More - \n"
+        "https://t.me/+ZLiGAAJIsZlhNTII\n\n"
+        "Whatsapp Channel-\n"
+        "https://whatsapp.com/channel/0029VamrQXx9WtCAV6CBul2m"
+    )
 
-# ✅ Serve homepage
-@app.route("/")
-def home():
-    return send_from_directory("static", "index.html")
+    await update.message.reply_text(text=message_text, reply_markup=reply_markup)
 
-# ✅ Serve Razorpay payment page
-@app.route("/buy")
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    print(f"Update {update} caused error {context.error}")
+
+application.add_handler(CommandHandler("start", start))
+application.add_error_handler(error_handler)
+
+# --- FLASK ROUTES ---
+@app.route('/')
+def index():
+    return "HI THERE FROM STUDYCART!", 200
+
+@app.route('/buy_page')
 def buy_page():
-    return render_template("buy_page.html")
+    return render_template('buy_page.html')
 
-# ✅ Serve static HTML pages like /contact, /privacy, /refund
-@app.route("/<page>")
-def static_html(page):
-    file_path = f"{page}.html"
-    full_path = os.path.join(app.static_folder, file_path)
-    if os.path.isfile(full_path):
-        return send_from_directory("static", file_path)
-    return "Page not found", 404
-
-# ✅ Also support direct .html routes like /contact.html
-@app.route("/<page>.html")
-def static_html_with_extension(page):
-    file_path = f"{page}.html"
-    full_path = os.path.join(app.static_folder, file_path)
-    if os.path.isfile(full_path):
-        return send_from_directory("static", file_path)
-    return "Page not found", 404
-
-# ✅ Razorpay order creation
-@app.route("/create_payment_razorpay", methods=["POST"])
+@app.route('/create_payment_razorpay', methods=['POST'])
 def create_payment_razorpay():
     data = request.json
-    user_id = data.get("user_id")
-    amount = data.get("amount", 10000)  # ₹100 in paise
+    user_id = data.get('user_id')
+    amount = data.get('amount', 100)
 
     if not user_id:
-        return jsonify({"error": "User ID is missing"}), 400
+        return jsonify({'error': 'User ID is missing'}), 400
 
     order_payload = {
-        "amount": amount,
-        "currency": "INR",
-        "receipt": f"receipt_{int(time.time())}",
-        "notes": {
-            "product": "Digital File Purchase"
-        }
+        'amount': amount,
+        'currency': 'INR',
+        'receipt': f'receipt_user_{user_id}',
+        'notes': {'telegram_user_id': str(user_id)}
     }
 
     try:
         order = razorpay_client.order.create(data=order_payload)
-        save_order_mapping(order["id"], user_id)
-
-        return jsonify({
-            "order_id": order["id"],
-            "key_id": RAZORPAY_KEY_ID,
-            "amount": order["amount"]
-        })
+        response_data = {
+            'order_id': order['id'],
+            'key_id': RAZORPAY_KEY_ID,
+            'amount': order['amount']
+        }
+        return jsonify(response_data)
     except Exception as e:
-        logging.error(f"Order creation failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
-# ✅ Razorpay webhook for Telegram delivery
-@app.route("/webhook/razorpay", methods=["POST"])
+@app.route('/webhook/razorpay', methods=['POST'])
 async def razorpay_webhook():
-    webhook_body = request.data.decode("utf-8")
-    webhook_signature = request.headers.get("x-razorpay-signature")
+    webhook_body = request.data.decode('utf-8')
+    webhook_signature = request.headers.get('x-razorpay-signature')
 
     try:
         razorpay_client.utility.verify_webhook_signature(
             webhook_body, webhook_signature, WEBHOOK_SECRET
         )
     except razorpay.errors.SignatureVerificationError:
-        logging.warning("Invalid webhook signature")
         return "Invalid signature", 400
 
     webhook_data = request.json
-    event = webhook_data.get("event")
+    event = webhook_data.get('event')
 
-    if event == "payment.captured":
-        payment_entity = webhook_data["payload"]["payment"]["entity"]
-        order_id = payment_entity["order_id"]
-        user_id = get_telegram_user(order_id)
+    if event == 'payment.captured':
+        payment_entity = webhook_data['payload']['payment']['entity']
+        user_id = payment_entity['notes'].get('telegram_user_id')
 
-        if user_id and str(user_id).isdigit():
+        if user_id:
             bot = Bot(token=TELEGRAM_TOKEN)
             try:
-                with open(FILE_PATH, "rb") as document:
+                with open(FILE_PATH, 'rb') as document:
                     await bot.send_document(
                         chat_id=int(user_id),
                         document=document,
-                        caption="✅ Thank you for your purchase! Here is your file."
+                        caption="Thank you for your purchase! Here is your file."
                     )
             except Exception as e:
-                logging.error(f"❌ Failed to send file to user {user_id}: {e}")
+                print(f"Failed to send file to user {user_id}: {e}")
 
     return "Webhook processed", 200
 
-# ✅ Telegram webhook for /start command (fixed coroutine warning)
-@app.route("/webhook/telegram", methods=["GET", "POST"])
-def telegram_webhook():
-    if request.method == "GET":
-        return "Telegram webhook is live", 200
-
-    data = request.json
-    logging.info(f"Telegram webhook received: {json.dumps(data)}")
-
-    message = data.get("message", {})
-    chat_id = message.get("chat", {}).get("id")
-    text = message.get("text", "")
-
-    if text == "/start" and chat_id:
-        bot = Bot(token=TELEGRAM_TOKEN)
-        try:
-            bot.send_message(
-                chat_id=chat_id,
-                text="👋 Welcome to StudyCart! Use /buy to get started."
-            )
-        except Exception as e:
-            logging.error(f"❌ Failed to send /start message: {e}")
-
+@app.route('/telegram', methods=['POST'])
+async def telegram_webhook_handler():
+    await application.initialize()
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    await application.process_update(update)
     return "OK", 200
+
+@app.route('/set_webhook', methods=['GET'])
+async def setup_webhook():
+    await application.initialize()
+    webhook_url = f"{RENDER_URL}/telegram"
+    await application.bot.set_webhook(url=webhook_url)
+    return "Telegram webhook setup OK"
