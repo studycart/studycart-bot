@@ -147,9 +147,14 @@ async def razorpay_webhook():
     return "Webhook processed", 200
 
 # ✅ Telegram webhook for /start command
-@app.route("/webhook/telegram", methods=["POST"])
+@app.route("/webhook/telegram", methods=["GET", "POST"])
 def telegram_webhook():
+    if request.method == "GET":
+        return "Telegram webhook is live", 200
+
     data = request.json
+    logging.info(f"Telegram webhook received: {json.dumps(data)}")
+
     message = data.get("message", {})
     chat_id = message.get("chat", {}).get("id")
     text = message.get("text", "")
