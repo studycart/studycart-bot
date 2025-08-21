@@ -6,8 +6,12 @@
       "dest": "app.py"
     },
     {
-      "src": "/(.*)",
-      "dest": "/public/$1"
+      "src": "/",
+      "dest": "/public/index.html"
+    },
+    {
+      "src": "/style.css",
+      "dest": "/public/style.css"
     }
   ]
 }
