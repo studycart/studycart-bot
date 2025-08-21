@@ -1,14 +1,14 @@
 import os
 import json
 import time
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from telegram import Bot
 import razorpay
 from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates")
 
 # ✅ Environment variables
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -41,12 +41,17 @@ def get_telegram_user(order_id):
     except FileNotFoundError:
         return None
 
+# ✅ Serve frontend page
+@app.route("/buy")
+def buy_page():
+    return render_template("buy_page.html")
+
 # ✅ Razorpay order creation
 @app.route("/create_payment_razorpay", methods=["POST"])
 def create_payment_razorpay():
     data = request.json
     user_id = data.get("user_id")
-    amount = data.get("amount", 100)
+    amount = data.get("amount", 10000)  # ₹100 in paise
 
     if not user_id:
         return jsonify({"error": "User ID is missing"}), 400
@@ -72,7 +77,7 @@ def create_payment_razorpay():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ✅ Razorpay webhook for file delivery
+# ✅ Razorpay webhook for Telegram delivery
 @app.route("/webhook/razorpay", methods=["POST"])
 async def razorpay_webhook():
     webhook_body = request.data.decode("utf-8")
@@ -107,7 +112,7 @@ async def razorpay_webhook():
 
     return "Webhook processed", 200
 
-# ✅ Health check (optional)
+# ✅ Health check
 @app.route("/")
 def index():
     return "StudyCart backend is running."
