@@ -3,9 +3,6 @@
     { "src": "app.py", "use": "@vercel/python" }
   ],
   "routes": [
-    { "src": "/buy", "dest": "app.py" },
-    { "src": "/create_payment_razorpay", "dest": "app.py" },
-    { "src": "/webhook/razorpay", "dest": "app.py" },
     { "src": "/(.*)", "dest": "app.py" }
   ]
 }
