@@ -36,7 +36,7 @@
                 const response = await fetch('/create_payment_razorpay', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, amount: 1000 }), // Using Rs. 10 for Live Mode
+                    body: JSON.stringify({ user_id: userId, amount: 100 }), // Using Rs. 10 for Live Mode
                 });
 
                 const data = await response.json();
