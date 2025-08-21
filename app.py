@@ -145,3 +145,23 @@ async def razorpay_webhook():
                 logging.error(f"❌ Failed to send file to user {user_id}: {e}")
 
     return "Webhook processed", 200
+
+# ✅ Telegram webhook for /start command
+@app.route("/webhook/telegram", methods=["POST"])
+def telegram_webhook():
+    data = request.json
+    message = data.get("message", {})
+    chat_id = message.get("chat", {}).get("id")
+    text = message.get("text", "")
+
+    if text == "/start" and chat_id:
+        bot = Bot(token=TELEGRAM_TOKEN)
+        try:
+            bot.send_message(
+                chat_id=chat_id,
+                text="👋 Welcome to StudyCart! Use /buy to get started."
+            )
+        except Exception as e:
+            logging.error(f"❌ Failed to send /start message: {e}")
+
+    return "OK", 200
