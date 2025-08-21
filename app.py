@@ -129,4 +129,4 @@ async def setup_webhook():
     
 @app.route('/')
 def index():
-    return "Bot is running (Mini-App Version)!", 200
+    return "HI THERE FROM STUDYCART!", 200
