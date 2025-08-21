@@ -146,7 +146,7 @@ async def razorpay_webhook():
 
     return "Webhook processed", 200
 
-# ✅ Telegram webhook for /start command
+# ✅ Telegram webhook for /start command (fixed coroutine warning)
 @app.route("/webhook/telegram", methods=["GET", "POST"])
 def telegram_webhook():
     if request.method == "GET":
