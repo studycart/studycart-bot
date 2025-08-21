@@ -32,6 +32,11 @@ def index():
 def buy_page():
     return render_template("buy_page.html")
 
+# ✅ NEW: Serve any static HTML file (about.html, contact.html, etc.)
+@app.route("/<path:filename>")
+def serve_static_pages(filename):
+    return send_from_directory("static", filename)
+
 # --- TELEGRAM BOT ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_chat.id
