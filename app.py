@@ -2,7 +2,7 @@ import os
 import razorpay
 import asyncio
 import httpx
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -45,16 +45,26 @@ application.add_handler(CommandHandler("start", start))
 application.add_error_handler(error_handler)
 
 # --- FLASK ROUTES ---
-from flask import send_from_directory
 
+# Serve homepage
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
 
+# Serve static HTML pages like /contact.html
+@app.route('/<path:filename>')
+def serve_static_html(filename):
+    static_file_path = os.path.join('static', filename)
+    if os.path.exists(static_file_path):
+        return send_from_directory('static', filename)
+    return "Page not found", 404
+
+# Razorpay payment page
 @app.route('/buy_page')
 def buy_page():
     return render_template('buy_page.html')
 
+# Create Razorpay order
 @app.route('/create_payment_razorpay', methods=['POST'])
 def create_payment_razorpay():
     data = request.json
@@ -82,6 +92,7 @@ def create_payment_razorpay():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Razorpay webhook
 @app.route('/webhook/razorpay', methods=['POST'])
 async def razorpay_webhook():
     webhook_body = request.data.decode('utf-8')
@@ -115,6 +126,7 @@ async def razorpay_webhook():
 
     return "Webhook processed", 200
 
+# Telegram webhook handler
 @app.route('/telegram', methods=['POST'])
 async def telegram_webhook_handler():
     await application.initialize()
@@ -122,6 +134,7 @@ async def telegram_webhook_handler():
     await application.process_update(update)
     return "OK", 200
 
+# Telegram webhook setup
 @app.route('/set_webhook', methods=['GET'])
 async def setup_webhook():
     await application.initialize()
