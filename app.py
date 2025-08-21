@@ -2,7 +2,8 @@ import os
 import razorpay
 import asyncio
 import httpx
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask_cors import CORS
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -18,8 +19,14 @@ FILE_PATH = os.path.join(BASE_DIR, "file_to_send.pdf")
 
 # --- FLASK APP & BOT INITIALIZATION ---
 app = Flask(__name__)
+CORS(app, origins=["https://studycart.store"], supports_credentials=True)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 application = Application.builder().token(TELEGRAM_TOKEN).build()
+
+# --- SERVE FRONTEND ---
+@app.route('/')
+def index():
+    return send_from_directory('static', 'index.html')
 
 # --- TELEGRAM BOT HANDLERS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -45,10 +52,6 @@ application.add_handler(CommandHandler("start", start))
 application.add_error_handler(error_handler)
 
 # --- FLASK ROUTES ---
-@app.route('/')
-def index():
-    return "HI THERE FROM STUDYCART!", 200
-
 @app.route('/buy_page')
 def buy_page():
     return render_template('buy_page.html')
