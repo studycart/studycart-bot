@@ -1,34 +1,38 @@
 import os
 import razorpay
-import asyncio
 import httpx
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# --- CONFIGURATION ---
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
-RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
-RENDER_URL = os.getenv('WEB_URL')  # e.g. https://studycart.store
-WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
+# --- CONFIG ---
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
+WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET")
+RENDER_URL = os.getenv("WEB_URL")  # e.g. https://studycart.store
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FILE_PATH = os.path.join(BASE_DIR, "file_to_send.pdf")
 
-# --- FLASK APP & BOT INITIALIZATION ---
+# --- INIT ---
 app = Flask(__name__)
-CORS(app, origins=["https://studycart.store"], supports_credentials=True)
+CORS(app, origins=[RENDER_URL], supports_credentials=True)
+
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
-application = Application.builder().token(TELEGRAM_TOKEN).build()
+telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# --- SERVE FRONTEND ---
-@app.route('/')
+# --- FRONTEND ROUTES ---
+@app.route("/")
 def index():
-    return send_from_directory('static', 'index.html')
+    return send_from_directory("static", "index.html")
 
-# --- TELEGRAM BOT HANDLERS ---
+@app.route("/buy_page")
+def buy_page():
+    return render_template("buy_page.html")
+
+# --- TELEGRAM BOT ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_chat.id
     web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
@@ -45,48 +49,43 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text=message_text, reply_markup=reply_markup)
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     print(f"Update {update} caused error {context.error}")
 
-application.add_handler(CommandHandler("start", start))
-application.add_error_handler(error_handler)
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_error_handler(error_handler)
 
-# --- FLASK ROUTES ---
-@app.route('/buy_page')
-def buy_page():
-    return render_template('buy_page.html')
-
-@app.route('/create_payment_razorpay', methods=['POST'])
+# --- PAYMENT ROUTES ---
+@app.route("/create_payment_razorpay", methods=["POST"])
 def create_payment_razorpay():
     data = request.json
-    user_id = data.get('user_id')
-    amount = data.get('amount', 100)
+    user_id = data.get("user_id")
+    amount = data.get("amount", 100)
 
     if not user_id:
-        return jsonify({'error': 'User ID is missing'}), 400
+        return jsonify({"error": "User ID is missing"}), 400
 
     order_payload = {
-        'amount': amount,
-        'currency': 'INR',
-        'receipt': f'receipt_user_{user_id}',
-        'notes': {'telegram_user_id': str(user_id)}
+        "amount": amount,
+        "currency": "INR",
+        "receipt": f"receipt_user_{user_id}",
+        "notes": {"telegram_user_id": str(user_id)}
     }
 
     try:
         order = razorpay_client.order.create(data=order_payload)
-        response_data = {
-            'order_id': order['id'],
-            'key_id': RAZORPAY_KEY_ID,
-            'amount': order['amount']
-        }
-        return jsonify(response_data)
+        return jsonify({
+            "order_id": order["id"],
+            "key_id": RAZORPAY_KEY_ID,
+            "amount": order["amount"]
+        })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/webhook/razorpay', methods=['POST'])
+@app.route("/webhook/razorpay", methods=["POST"])
 async def razorpay_webhook():
-    webhook_body = request.data.decode('utf-8')
-    webhook_signature = request.headers.get('x-razorpay-signature')
+    webhook_body = request.data.decode("utf-8")
+    webhook_signature = request.headers.get("x-razorpay-signature")
 
     try:
         razorpay_client.utility.verify_webhook_signature(
@@ -96,16 +95,16 @@ async def razorpay_webhook():
         return "Invalid signature", 400
 
     webhook_data = request.json
-    event = webhook_data.get('event')
+    event = webhook_data.get("event")
 
-    if event == 'payment.captured':
-        payment_entity = webhook_data['payload']['payment']['entity']
-        user_id = payment_entity['notes'].get('telegram_user_id')
+    if event == "payment.captured":
+        payment_entity = webhook_data["payload"]["payment"]["entity"]
+        user_id = payment_entity["notes"].get("telegram_user_id")
 
         if user_id:
             bot = Bot(token=TELEGRAM_TOKEN)
             try:
-                with open(FILE_PATH, 'rb') as document:
+                with open(FILE_PATH, "rb") as document:
                     await bot.send_document(
                         chat_id=int(user_id),
                         document=document,
@@ -116,16 +115,17 @@ async def razorpay_webhook():
 
     return "Webhook processed", 200
 
-@app.route('/telegram', methods=['POST'])
+# --- TELEGRAM WEBHOOK ROUTES ---
+@app.route("/telegram", methods=["POST"])
 async def telegram_webhook_handler():
-    await application.initialize()
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    await application.process_update(update)
+    await telegram_app.initialize()
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    await telegram_app.process_update(update)
     return "OK", 200
 
-@app.route('/set_webhook', methods=['GET'])
+@app.route("/set_webhook", methods=["GET"])
 async def setup_webhook():
-    await application.initialize()
+    await telegram_app.initialize()
     webhook_url = f"{RENDER_URL}/telegram"
-    await application.bot.set_webhook(url=webhook_url)
+    await telegram_app.bot.set_webhook(url=webhook_url)
     return "Telegram webhook setup OK"
