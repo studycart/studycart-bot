@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import logging
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from telegram import Bot
 import razorpay
@@ -9,6 +10,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
+
+# ✅ Logging setup
+logging.basicConfig(level=logging.INFO)
 
 # ✅ Environment variables
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -20,6 +24,11 @@ FILE_PATH = "file_to_send.pdf"
 # ✅ Razorpay client
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
+# ✅ Ensure order_map.json exists
+if not os.path.exists("order_map.json"):
+    with open("order_map.json", "w") as f:
+        json.dump({}, f)
+
 # ✅ Internal mapping helpers
 def save_order_mapping(order_id, telegram_user_id):
     try:
@@ -29,17 +38,22 @@ def save_order_mapping(order_id, telegram_user_id):
             f.seek(0)
             json.dump(data, f)
             f.truncate()
-    except FileNotFoundError:
-        with open("order_map.json", "w") as f:
-            json.dump({order_id: telegram_user_id}, f)
+    except Exception as e:
+        logging.error(f"Error saving order mapping: {e}")
 
 def get_telegram_user(order_id):
     try:
         with open("order_map.json", "r") as f:
             data = json.load(f)
             return data.get(order_id)
-    except FileNotFoundError:
+    except Exception as e:
+        logging.error(f"Error retrieving user from mapping: {e}")
         return None
+
+# ✅ Serve homepage
+@app.route("/")
+def home():
+    return send_from_directory("static", "index.html")
 
 # ✅ Serve Razorpay payment page
 @app.route("/buy")
@@ -50,12 +64,10 @@ def buy_page():
 @app.route("/<page>")
 def static_html(page):
     file_path = f"{page}.html"
-    return send_from_directory("static", file_path)
-
-# ✅ Serve homepage
-@app.route("/")
-def home():
-    return send_from_directory("static", "index.html")
+    full_path = os.path.join(app.static_folder, file_path)
+    if os.path.exists(full_path):
+        return send_from_directory("static", file_path)
+    return "Page not found", 404
 
 # ✅ Razorpay order creation
 @app.route("/create_payment_razorpay", methods=["POST"])
@@ -86,6 +98,7 @@ def create_payment_razorpay():
             "amount": order["amount"]
         })
     except Exception as e:
+        logging.error(f"Order creation failed: {e}")
         return jsonify({"error": str(e)}), 500
 
 # ✅ Razorpay webhook for Telegram delivery
@@ -99,6 +112,7 @@ async def razorpay_webhook():
             webhook_body, webhook_signature, WEBHOOK_SECRET
         )
     except razorpay.errors.SignatureVerificationError:
+        logging.warning("Invalid webhook signature")
         return "Invalid signature", 400
 
     webhook_data = request.json
@@ -109,7 +123,7 @@ async def razorpay_webhook():
         order_id = payment_entity["order_id"]
         user_id = get_telegram_user(order_id)
 
-        if user_id:
+        if user_id and str(user_id).isdigit():
             bot = Bot(token=TELEGRAM_TOKEN)
             try:
                 with open(FILE_PATH, "rb") as document:
@@ -119,6 +133,6 @@ async def razorpay_webhook():
                         caption="✅ Thank you for your purchase! Here is your file."
                     )
             except Exception as e:
-                print(f"❌ Failed to send file to user {user_id}: {e}")
+                logging.error(f"❌ Failed to send file to user {user_id}: {e}")
 
     return "Webhook processed", 200
