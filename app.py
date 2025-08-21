@@ -12,7 +12,8 @@ RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
 RENDER_URL = os.getenv('WEB_URL')
 WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
-FILE_PATH = "file_to_send.pdf"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FILE_PATH = os.path.join(BASE_DIR, "file_to_send.pdf")
 
 # --- FLASK APP & BOT INITIALIZATION ---
 app = Flask(__name__)
