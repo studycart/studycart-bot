@@ -36,7 +36,7 @@
                 const response = await fetch('/create_payment_razorpay', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, amount: 100 }),
+                    body: JSON.stringify({ user_id: userId, amount: 1000 }), // Using Rs. 10 for Live Mode
                 });
 
                 const data = await response.json();
@@ -52,8 +52,16 @@
                         alert("Payment successful! Your file will be sent to your chat shortly.");
                         window.Telegram.WebApp.close();
                     },
+                    // --- THIS IS THE ADDED CHANGE ---
+                    "prefill": {
+                        "name": "Valued Customer",
+                        "email": "customer@example.com",
+                        "contact": "9999999999"
+                    },
+                    // --- END OF CHANGE ---
                     "theme": { "color": "#3399cc" }
                 };
+
                 const rzp1 = new Razorpay(options);
                 rzp1.on('payment.failed', function (response){
                         alert("Payment failed. Please try again.");
