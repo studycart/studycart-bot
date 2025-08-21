@@ -45,10 +45,6 @@ application.add_handler(CommandHandler("start", start))
 application.add_error_handler(error_handler)
 
 # --- FLASK ROUTES ---
-@app.route('/')
-def index():
-    return "HI THERE FROM STUDYCART!", 200
-
 @app.route('/buy_page')
 def buy_page():
     return render_template('buy_page.html')
