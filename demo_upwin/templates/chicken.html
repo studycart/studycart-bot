@@ -1,0 +1,28 @@
+<h2>🐔 Chicken Road</h2>
+<div id="game" style="width:300px;height:400px;background:#333;margin:auto;position:relative;">
+  <div id="chicken" style="width:40px;height:40px;background:yellow;position:absolute;bottom:0;left:130px;"></div>
+  <div id="car" style="width:40px;height:40px;background:red;position:absolute;top:0;left:130px;"></div>
+</div>
+<script>
+const chicken = document.getElementById("chicken");
+const car = document.getElementById("car");
+let carY = 0;
+function moveCar() {
+  carY += 5;
+  car.style.top = carY + "px";
+  const cRect = car.getBoundingClientRect();
+  const chRect = chicken.getBoundingClientRect();
+  if (cRect.top < chRect.bottom && cRect.bottom > chRect.top &&
+      cRect.left < chRect.right && cRect.right > chRect.left) {
+    alert("💥 Game Over!");
+    carY = 0;
+  }
+  if (carY < 400) requestAnimationFrame(moveCar);
+  else carY = 0;
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft") chicken.style.left = (parseInt(chicken.style.left) - 10) + "px";
+  if (e.key === "ArrowRight") chicken.style.left = (parseInt(chicken.style.left) + 10) + "px";
+});
+moveCar();
+</script>
