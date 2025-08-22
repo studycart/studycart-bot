@@ -14,7 +14,7 @@ RENDER_URL = os.getenv('WEB_URL')  # e.g. https://studycart.store
 WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FILE_PATH = os.path.join(BASE_DIR, "file_to_send.pdf")
+FILE_PATH = os.path.join(BASE_DIR, "GPay.apk")
 
 # --- FLASK APP & BOT INITIALIZATION ---
 app = Flask(__name__)
