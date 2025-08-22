@@ -1,0 +1,6 @@
+<h2>🏆 Top Aviator Scores</h2>
+<ol>
+  {% for entry in board %}
+    <li>{{ entry.username }} — {{ entry.score }}x</li>
+  {% endfor %}
+</ol>
