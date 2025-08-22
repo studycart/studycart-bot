@@ -31,9 +31,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     message_text = (
         "Join Our Official Channel For More - \n"
-        "https://t.me/+ZLiGAAJIsZlhNTII\n\n"
+        "https://t.me/+ZliGAAJIsZlhNTll\n\n"
         "Whatsapp Channel-\n"
-        "https://whatsapp.com/channel/0029VamrQXx9WtCAV6CBul2m"
+        "https://whatsapp.com/channel/0029VamrQxX9WtCAV6CBuI2m"
     )
 
     await update.message.reply_text(text=message_text, reply_markup=reply_markup)
