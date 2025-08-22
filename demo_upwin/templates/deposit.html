@@ -1,0 +1,15 @@
+<h2>💳 Add Funds</h2>
+<form id="depositForm">
+  <input type="number" name="amount" placeholder="Enter amount" required>
+  <input type="text" name="telegram_id" placeholder="Telegram ID" required>
+  <button type="submit">Deposit</button>
+</form>
+<script>
+document.getElementById("depositForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const res = await fetch("/create_order", { method: "POST", body: form });
+  const data = await res.json();
+  alert("Order created: " + data.id);
+};
+</script>
