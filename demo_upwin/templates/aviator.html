@@ -1,0 +1,23 @@
+<h2>✈️ Aviator</h2>
+<p id="multiplier">Multiplier: 1.00x</p>
+<button onclick="cashOut()">Cash Out</button>
+<script>
+let multiplier = 1.00;
+let interval = setInterval(() => {
+  multiplier += Math.random() * 0.1;
+  document.getElementById("multiplier").innerText = "Multiplier: " + multiplier.toFixed(2) + "x";
+  if (Math.random() < 0.01) {
+    clearInterval(interval);
+    alert("💥 Plane crashed at " + multiplier.toFixed(2) + "x");
+  }
+}, 300);
+function cashOut() {
+  clearInterval(interval);
+  fetch("/submit_score", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: "Rushikesh", score: multiplier.toFixed(2) })
+  });
+  alert("✅ Cashed out at " + multiplier.toFixed(2) + "x");
+}
+</script>
