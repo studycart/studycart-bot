@@ -1,4 +1,5 @@
 {
-  "builds": [{ "src": "app_upwin.py", "use": "@vercel/python" }],
-  "routes": [{ "src": "/(.*)", "dest": "app_upwin.py" }]
+  "rewrites": [
+    { "source": "/demo_upwin", "destination": "/app_upwin.py" }
+  ]
 }
