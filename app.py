@@ -49,15 +49,7 @@ application.add_error_handler(error_handler)
 # Serve homepage
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
-
-# Serve static HTML pages like /contact.html
-@app.route('/<path:filename>')
-def serve_static_html(filename):
-    static_file_path = os.path.join('static', filename)
-    if os.path.exists(static_file_path):
-        return send_from_directory('static', filename)
-    return "Page not found", 404
+    return send_from_directory(os.path.join(BASE_DIR, 'static'), 'index.html')
 
 # Razorpay payment page
 @app.route('/buy_page')
@@ -141,3 +133,21 @@ async def setup_webhook():
     webhook_url = f"{RENDER_URL}/telegram"
     await application.bot._set_webhook(url=webhook_url)
     return "Telegram webhook setup OK"
+
+# --- STATIC HTML CATCH-ALL (declared LAST) ---
+@app.route('/<path:filename>')
+def serve_static_html(filename):
+    static_dir = os.path.join(BASE_DIR, 'static')
+
+    # Exact match (e.g., /about.html)
+    file_path = os.path.join(static_dir, filename)
+    if os.path.exists(file_path):
+        return send_from_directory(static_dir, filename)
+
+    # Pretty URL match (e.g., /about → about.html)
+    if not filename.endswith('.html'):
+        html_path = os.path.join(static_dir, f"{filename}.html")
+        if os.path.exists(html_path):
+            return send_from_directory(static_dir, f"{filename}.html")
+
+    return "Page not found", 404
