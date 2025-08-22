@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect
 import razorpay, os
 from dotenv import load_dotenv
 
@@ -12,7 +12,17 @@ leaderboard = []
 
 @app.route("/")
 def index():
+    tg_data = request.args.get("tgWebAppData")
+    if not tg_data:
+        return redirect("https://t.me/UPWinBot?startapp")  # Replace with your bot username
     return render_template("index.html")
+
+@app.route("/verify_session", methods=["POST"])
+def verify_session():
+    data = request.get_json()
+    init_data = data.get("initData")
+    # Optional: verify Telegram initData here
+    return jsonify({"status": "ok"})
 
 @app.route("/deposit")
 def deposit():
