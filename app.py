@@ -34,7 +34,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "**Unlock the GPay Soundbox Experience! 🔊**\n\n"
         "Get the exclusive GPay Soundbox APK, perfect for demos & pranks, for just **₹39**.\n\n"
         "🔗 **Join our Channel:** https://t.me/gpaysound\n"
-        "🎥 **Watch Tutorial:**  https://t.me/gpaysound\n\n"
+        "🎥 **Watch Tutorial:**   https://t.me/gpaysound\n\n"
         "Click the button below to get your file instantly!"
     )
     # --- END OF UPDATED SECTION ---
