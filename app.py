@@ -26,15 +26,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_chat.id
     web_app_url = f"{RENDER_URL}/buy_page?user_id={user_id}"
 
-    keyboard = [[InlineKeyboardButton("Buy", web_app=WebAppInfo(url=web_app_url))]]
+    # --- THIS IS THE UPDATED SECTION ---
+    keyboard = [[InlineKeyboardButton("Buy Now for ₹39 ✨", web_app=WebAppInfo(url=web_app_url))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
+    
     message_text = (
-        "Join Our Official Channel For More - \n"
-        "https://t.me/+gmi5eCH5j-wyZDJl\n\n"
-        "Tutorial link-\n"
-        "https://t.me/+gmi5eCH5j-wyZDJl"
+        "**Unlock the GPay Soundbox Experience! 🔊**\n\n"
+        "Get the exclusive GPay Soundbox APK, perfect for demos & pranks, for just **₹39**.\n\n"
+        "🔗 **Join our Channel:** https://t.me/+gmi5eCH5j-wyZDJl\n"
+        "🎥 **Watch Tutorial:** https://t.me/+gmi5eCH5j-wyZDJl\n\n"
+        "Click the button below to get your file instantly!"
     )
+    # --- END OF UPDATED SECTION ---
 
     await update.message.reply_text(text=message_text, reply_markup=reply_markup)
 
@@ -61,7 +64,7 @@ def buy_page():
 def create_payment_razorpay():
     data = request.json
     user_id = data.get('user_id')
-    amount = data.get('amount', 100)
+    amount = data.get('amount', 3900) # Updated to Rs. 39
 
     if not user_id:
         return jsonify({'error': 'User ID is missing'}), 400
@@ -131,7 +134,7 @@ async def telegram_webhook_handler():
 async def setup_webhook():
     await application.initialize()
     webhook_url = f"{RENDER_URL}/telegram"
-    await application.bot._set_webhook(url=webhook_url)
+    await application.bot.set_webhook(url=webhook_url)
     return "Telegram webhook setup OK"
 
 # --- STATIC HTML CATCH-ALL (declared LAST) ---
